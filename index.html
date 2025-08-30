@@ -36,7 +36,7 @@
             object-fit: contain;
         }
 
-        .controls {    
+        #captureControls {    
             position: absolute;    /* Controls über dem Bild */
             bottom: 2vw;           /* Abstand vom unteren Rand */
             left: 50%;
@@ -45,6 +45,18 @@
             justify-content: center;
             align-items: center;
             gap: 4vw;
+            z-index: 2;
+            pointer-events: auto;
+        }
+
+        #stroboControls {
+            position: absolute;
+            width: 90%;
+            bottom: 2vw;
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            gap: 2vw;
             z-index: 2;
             pointer-events: auto;
         }
@@ -103,9 +115,7 @@
         }
 
         #interval-slider {
-            width: 40vw;
-            min-width: 120px;
-            max-width: 300px;
+            flex: 1;
             accent-color: #ff3333;
         }
 
@@ -135,7 +145,7 @@
     <!-- Live-Video -->
     <div id="camera-container">
         <video id="video" autoplay playsinline></video>
-        <div class="controls">
+        <div id="captureControls">
             <div id="shutter"></div>
             <button id="toggle-camera">Frontkamera</button>
         </div>
@@ -145,7 +155,7 @@
     <!-- Stroboskopbild -->
     <div id="strobe-container" style="display:none;">
         <canvas id="canvasStrobe"></canvas>
-        <div class="controls">
+        <div id="stroboControls">
             <input type="range" id="interval-slider" min="1" max="10" value="3" />
             <span id="interval-value">3</span>
         </div>
@@ -234,15 +244,16 @@
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
 
-                    const captureFrame = () => {
+                    const captureFrame = (now, metadata) => {
                         if (!recording) return;
                         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                         let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                         frames.push(imageData);
                         updateDebugInfo();
-                        requestAnimationFrame(captureFrame);
-                    }
-                    captureFrame();
+                        video.requestVideoFrameCallback(captureFrame);
+                    };
+
+                    video.requestVideoFrameCallback(captureFrame);
 
                 } else {
                     recording = false;
@@ -251,6 +262,7 @@
                     strobeContainer.style.display = 'flex';
                     shutter.style.display = 'none';
                     intervalValue.textContent = intervalSlider.value;
+                    intervalSlider.max = Math.floor(frames.length / 5);
                     stroboEvaluation = createStroboEvaluation(frames);
                     stroboEvaluation.updateStrobe('canvasStrobe', parseInt(intervalSlider.value));
                 }
