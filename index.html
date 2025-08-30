@@ -26,7 +26,7 @@
         }
 
         video,
-        img {
+        canvas {
             width: 100%;
             height: 100%;
             object-fit: cover;
@@ -59,6 +59,7 @@
         }
     </style>
     <script async src="https://docs.opencv.org/4.x/opencv.js" onload="onOpenCvReady();"></script>
+    <script type="module" src="strobo.js"></script>
     <script>
         function onOpenCvReady() {
             console.log('OpenCV.js ist geladen.');
@@ -78,48 +79,81 @@
         <video id="video" autoplay playsinline></video>
         <div id="controls">
             <div id="shutter"></div>
+            <button id="toggle-camera">Frontkamera</button>
         </div>
     </div>
 
     <!-- Stroboskopbild -->
     <div id="strobe-container" style="display:none; flex-direction:column; align-items:center;">
-        <img id="strobe-img" />
-        <canvas id="canvasStrobe" width="640" height="480" style="display:block;"></canvas>
-        <input type="range" id="interval-slider" min="1" max="10" value="3" />
-        <span id="interval-value">3</span>
+        <canvas id="canvasStrobe"></canvas>
+        <div id="controls">
+            <input type="range" id="interval-slider" min="1" max="10" value="3" />
+            <span id="interval-value">3</span>
+        </div>
     </div>
 
-    <script>
+    <script type="module">
 
+        import { createStroboEvaluation } from './strobo.js';
 
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('DOM fully loaded and parsed');
+
             const video = document.getElementById('video');
             const shutter = document.getElementById('shutter');
+            const toggleBtn = document.getElementById('toggle-camera');
             const strobeContainer = document.getElementById('strobe-container');
-            const strobeImg = document.getElementById('strobe-img');
             const intervalSlider = document.getElementById('interval-slider');
             const intervalValue = document.getElementById('interval-value');
             const cameraContainer = document.getElementById('camera-container');
 
-            // Live-Video starten
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, frameRate: 30 } });
-                video.srcObject = stream;
-            } catch (err) {
-                alert("Kamera konnte nicht geöffnet werden: " + err);
-                return;
-            }
-
+            let usingFront = true; // Frontkamera aktiv
+            let currentStream;
             let recording = false;
             let frames = [];
+            let stroboEvaluation;
+
+            async function startCamera() {
+                if (currentStream) {
+                    // Alte Streams stoppen
+                    currentStream.getTracks().forEach(track => track.stop());
+                }
+
+                const facingMode = usingFront ? 'user' : 'environment';
+
+                try {
+                    currentStream = await navigator.mediaDevices.getUserMedia({
+                        video: { width: 640, height: 480, frameRate: 30, facingMode }
+                    });
+                    video.srcObject = currentStream;
+                } catch (err) {
+                    alert("Kamera konnte nicht geöffnet werden: " + err);
+                }
+            }
+
+            // Toggle-Button Event
+            toggleBtn.addEventListener('click', () => {
+                usingFront = !usingFront;
+                toggleBtn.textContent = usingFront ? 'Frontkamera' : 'Rückkamera';
+                startCamera();
+            });
 
             intervalSlider.addEventListener('input', () => {
                 intervalValue.textContent = intervalSlider.value;
-                updateStrobe(parseInt(intervalSlider.value));
+                if (stroboEvaluation) {
+                    stroboEvaluation.updateStrobe('canvasStrobe', parseInt(intervalSlider.value));
+                }
+            });
+            
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'VolumeUp' || e.code === 'VolumeDown') {
+                    onShutter();
+                }
             });
 
-            shutter.addEventListener('click', () => {
+            shutter.addEventListener('click', onShutter);
+
+            function onShutter() {
                 if (!recording) {
                     // Aufnahme starten
                     recording = true;
@@ -138,7 +172,6 @@
                         // Bild ins Canvas zeichnen
                         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-                        // cv.Mat
                         let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                         frames.push(imageData);
 
@@ -160,97 +193,12 @@
                     // Slider-Wert anzeigen
                     intervalValue.textContent = intervalSlider.value;
 
-                    prepareEvaluation();
-                    updateStrobe(parseInt(intervalSlider.value));
+                    stroboEvaluation = createStroboEvaluation(frames);
+                    stroboEvaluation.updateStrobe('canvasStrobe', parseInt(intervalSlider.value));
                 }
-            });
-
-            let background;
-            let framesRGB = [];
-            let maxDiff;
-            let maxAbsdiff;
-            let diff;
-            let absDiff;
-            let absDiff3;
-            let mask;
-            let strobeMat;
-            let strobeDisplay;
-            let frame32F;
-
-            function prepareEvaluation(){
-                console.log('prepareEvaluation...');
-                const w = video.videoWidth;
-                const h = video.videoHeight;
-                console.log(`Video dimensions: ${frames.length}x(${w}x${h})`);
-                bytesOpenCv = frames.length * w * h * 3;
-                console.log(`Approx. memory for OpenCV Mats: ${Math.round(bytesOpenCv / 1024 / 1024)} MB`);
-                
-                // convert to RGB cv.Mat
-                for (let i = 0; i < frames.length; i++) {
-                    const imageData = frames[i];
-                    let matRGBA = cv.matFromImageData(imageData);
-                    frames[i] = null;
-                    let matRGB = new cv.Mat();
-                    cv.cvtColor(matRGBA, matRGB, cv.COLOR_RGBA2RGB);
-                    matRGBA.delete();
-                    framesRGB.push(matRGB);
-                }
-                frames = null;
-    
-                frame32F = new cv.Mat(h, w, cv.CV_32FC3);
-                background = new cv.Mat.zeros(h, w, cv.CV_32FC3);
-                calcBackground();
-                maxDiff = new cv.Mat.zeros(h, w, cv.CV_32FC3);
-                maxAbsDiff = new cv.Mat.zeros(h, w, cv.CV_32F);
-                diff = new cv.Mat(h, w, cv.CV_32FC3);
-                absDiff = new cv.Mat(h, w, cv.CV_32F);
-                absDiff3 = new cv.Mat(h, w, cv.CV_32FC3);
-                mask = new cv.Mat(h, w, cv.CV_8U);
-                strobeMat = new cv.Mat(h, w, cv.CV_32FC3);
-                strobeDisplay = new cv.Mat(h, w, cv.CV_8UC3);
             }
 
-            function calcBackground(){
-                framesRGB.forEach(f => {
-                    f.convertTo(frame32F, cv.CV_32F);
-                    cv.add(background, frame32F, background);                    
-                });
-
-                // divide background by number of frames
-                const m = 1.0 / framesRGB.length;
-                const scalar = new cv.Scalar(m, m, m)
-                const scalarMat = new cv.Mat(background.rows, background.cols, background.type(), scalar);
-                cv.multiply(background, scalarMat, background);
-                scalarMat.delete();
-            }
-
-            function updateStrobe(interval) {
-                console.log('updateStrobe...');
-                if (framesRGB.length === 0) return;
-
-                maxDiff.setTo(new cv.Scalar(0, 0, 0));
-                maxAbsDiff.setTo(new cv.Scalar(0));
-
-                for (let i = 0; i < framesRGB.length; i += interval) {
-                    const frame = framesRGB[i];
-                    frame.convertTo(frame32F, cv.CV_32F);
-                    cv.subtract(frame32F, background, diff);
-                    cv.absdiff(frame32F, background, absDiff3);
-                    cv.cvtColor(absDiff3, absDiff, cv.COLOR_RGB2GRAY);
-                    cv.compare(absDiff, maxAbsDiff, mask, cv.CMP_GT);
-                    diff.copyTo(maxDiff, mask);
-                    absDiff.copyTo(maxAbsDiff, mask);
-                }
-
-                background.copyTo(strobeMat);
-                cv.add(strobeMat, maxDiff, strobeMat);
-
-                strobeMat.convertTo(strobeDisplay, cv.CV_8U);
-                cv.imshow('canvasStrobe', strobeDisplay);
-
-                console.log('updateStrobe finished.');
-            }
-
+            startCamera();
 
         });
     </script>
