@@ -1,79 +1,125 @@
 <!DOCTYPE html>
 <html lang="de">
-
 <head>
-    <meta charset="UTF-8">
-    <title>Stroboskopbild mit OpenCV.js</title>
-    <script async src="https://docs.opencv.org/4.x/opencv.js" onload="onOpenCvReady();"></script>
-    <style>
-        video,
-        canvas {
-            max-width: 45%;
-            margin: 5px;
-            border: 1px solid #aaa;
-        }
-    </style>
+<meta charset="UTF-8">
+<title>Stroboskop-Video</title>
+<style>
+  html, body { margin:0; padding:0; height:100%; overflow:hidden; background:black; display:flex; flex-direction:column; }
+  #camera-container, #strobe-container { flex:1; display:flex; justify-content:center; align-items:center; position:relative; }
+  video, img { width:100%; height:100%; object-fit:cover; }
+  #controls { position:absolute; bottom:20px; width:100%; display:flex; justify-content:center; align-items:center; gap:10px; }
+  #shutter { width:70px; height:70px; background:red; border-radius:50%; cursor:pointer; }
+  #shutter.active { background:darkred; }
+  #interval-slider { width:200px; }
+</style>
 </head>
-
 <body>
-    <h2>Live-Stroboskop mit OpenCV.js</h2>
-    <video id="video" autoplay playsinline></video>
-    <canvas id="canvasOutput"></canvas>
 
-    <script>
-        let video = document.getElementById("video");
-        let cap, src, dst, accumulator;
-        let streaming = false;
+<!-- Live-Video -->
+<div id="camera-container">
+  <video id="video" autoplay playsinline></video>
+  <div id="controls">
+    <div id="shutter"></div>
+  </div>
+</div>
 
-        async function initCamera() {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-            video.srcObject = stream;
-            return new Promise(resolve => {
-                video.onloadedmetadata = () => {
-                    video.play();
-                    resolve();
-                };
-            });
-        }
+<!-- Stroboskopbild -->
+<div id="strobe-container" style="display:none; flex-direction:column; align-items:center;">
+  <img id="strobe-img" />
+  <input type="range" id="interval-slider" min="1" max="10" value="3" />
+  <span id="interval-value">3</span>
+</div>
 
-        function onOpenCvReady() {
-            initCamera().then(() => {
-                // Jetzt hat das Video echte Dimensionen
-                let w = video.videoWidth;
-                let h = video.videoHeight;
-                console.log(`Video dimensions: ${w}x${h}`);
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const video = document.getElementById('video');
+  const shutter = document.getElementById('shutter');
+  const strobeContainer = document.getElementById('strobe-container');
+  const strobeImg = document.getElementById('strobe-img');
+  const intervalSlider = document.getElementById('interval-slider');
+  const intervalValue = document.getElementById('interval-value');
+  const cameraContainer = document.getElementById('camera-container');
 
-                //workaround for opencv.js
-                video.width = w;
-                video.height = h;
+  // Live-Video starten
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, frameRate: 30 } });
+    video.srcObject = stream;
+  } catch(err) {
+    alert("Kamera konnte nicht geöffnet werden: " + err);
+    return;
+  }
 
-                cap = new cv.VideoCapture(video);
-                src = new cv.Mat(h, w, cv.CV_8UC4);
-                dst = new cv.Mat(h, w, cv.CV_8UC4);
-                accumulator = new cv.Mat(h, w, cv.CV_8UC4, new cv.Scalar());
+  let recording = false;
+  let frames = [];
 
-                streaming = true;
-                requestAnimationFrame(processVideo);
-            });
-        }
+  intervalSlider.addEventListener('input', () => {
+    intervalValue.textContent = intervalSlider.value;
+    updateStrobe(parseInt(intervalSlider.value));
+  });
 
-        function processVideo() {
-            if (!streaming) return;
+  shutter.addEventListener('click', () => {
+    if(!recording){
+      // Aufnahme starten
+      recording = true;
+      shutter.classList.add('active');
+      frames = [];
 
-            let w = video.videoWidth;
-            let h = video.videoHeight;
-            console.log(`processVideo: Video dimensions: ${w}x${h}`);
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
 
-            cap.read(src);
+      const captureFrame = () => {
+        if(!recording) return;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        frames.push(ctx.getImageData(0,0,canvas.width,canvas.height));
+        requestAnimationFrame(captureFrame);
+      }
+      captureFrame();
 
-            // Stroboskop-Effekt: Pixelweise Maximum
-            cv.max(src, accumulator, accumulator);
+    } else {
+      // Aufnahme stoppen
+      recording = false;
+      shutter.classList.remove('active');
 
-            cv.imshow("canvasOutput", accumulator);
+      // Live-Bild ausblenden
+      cameraContainer.style.display = 'none';
+      strobeContainer.style.display = 'flex';
+      shutter.style.display = 'none';
 
-            requestAnimationFrame(processVideo);
-        }
-    </script>
+      // Slider-Wert anzeigen
+      intervalValue.textContent = intervalSlider.value;
+
+      updateStrobe(parseInt(intervalSlider.value));
+    }
+  });
+
+  function updateStrobe(interval) {
+    if(frames.length === 0) return;
+    const width = frames[0].width;
+    const height = frames[0].height;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = width;
+    canvas.height = height;
+    const out = ctx.createImageData(width,height);
+
+    for(let i=0; i<frames.length-interval; i+=interval){
+      const f1 = frames[i];
+      const f2 = frames[i+interval];
+      for(let j=0; j<f1.data.length; j+=4){
+        // Absolute Differenz auf RGB-Kanäle
+        out.data[j]   = Math.min(255, Math.abs(f2.data[j] - f1.data[j]));
+        out.data[j+1] = Math.min(255, Math.abs(f2.data[j+1] - f1.data[j+1]));
+        out.data[j+2] = Math.min(255, Math.abs(f2.data[j+2] - f1.data[j+2]));
+        out.data[j+3] = 255;
+      }
+      ctx.putImageData(out,0,0);
+    }
+    strobeImg.src = canvas.toDataURL('image/png');
+  }
+
+});
+</script>
 </body>
-
 </html>
