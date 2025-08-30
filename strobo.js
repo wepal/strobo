@@ -63,7 +63,7 @@ export function createStroboEvaluation(frames) {
         scalarMat.delete();
     }
 
-    function updateStrobe(canvas, interval) {
+    function update(canvas, interval) {
         console.log('updateStrobe...');
         if (framesRGB.length === 0) return;
 
@@ -90,9 +90,25 @@ export function createStroboEvaluation(frames) {
         console.log('updateStrobe finished.');
     }
 
+    function destroy() {
+        framesRGB.forEach(f => f.delete());
+        framesRGB = [];
+        background.delete();
+        maxDiff.delete();
+        maxAbsDiff.delete();
+        diff.delete();
+        absDiff.delete();
+        absDiff3.delete();
+        mask.delete();
+        strobeMat.delete();
+        strobeDisplay.delete();
+        frame32F.delete();
+    }
+
     prepareEvaluation(frames);
 
     return {
-        updateStrobe
+        update,
+        destroy
     };
 }

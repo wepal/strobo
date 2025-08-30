@@ -104,18 +104,45 @@ canvas {
     background: darkred;
 }*/
 
-#toggle-camera {
-    position: absolute;
-    bottom: 2vw;
-    right: 2vw;
+#toggle-camera,
+#fullscreen,
+#reset {
     z-index: 2;
     width: 4rem;
     height: 4rem;
+    position: absolute;
     cursor: pointer;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
 }
 
-#toggle-camera:active {
-    background: #444;
+#toggle-camera:active,
+#fullscreen:active,
+#reset:active {
+    opacity: 0.25;
+}
+
+#toggle-camera {
+    bottom: 1rem;
+    right: 1rem;
+    background-image: url('switch.svg');
+}
+
+#fullscreen {
+    top: 1rem;
+    right: 1rem;
+    background-image: url('fullscreen.svg');
+}
+
+#fullscreen.active {
+    background-image: url('exit-fullscreen.svg');
+}
+
+#reset {
+    top: 1rem;
+    left: 1rem;
+    background-image: url('reset.svg');
 }
 
 #interval-slider {

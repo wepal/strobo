@@ -14,11 +14,14 @@
 
 <body>
 
+    <div id="reset"></div>
+    <div id="fullscreen"></div>
+
     <!-- Live-Video -->
     <div id="camera-container">
         <video id="video" autoplay playsinline></video>
         <div id="shutter" class="disabled"></div>
-        <img id="toggle-camera" src="switch.svg" />
+        <div id="toggle-camera"></div>
         <div id="debugInfo"></div>
     </div>
 
@@ -38,6 +41,8 @@
         const video = document.getElementById('video');
         const shutter = document.getElementById('shutter');
         const toggleBtn = document.getElementById('toggle-camera');
+        const resetBtn = document.getElementById('reset');
+        const fullscreenBtn = document.getElementById('fullscreen');
         const strobeContainer = document.getElementById('strobe-container');
         const intervalSlider = document.getElementById('interval-slider');
         const intervalValue = document.getElementById('interval-value');
@@ -84,6 +89,20 @@
             `;
         }
 
+        function toggleFullscreen(elem = document.documentElement) {
+            const fsElem = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+            if (!fsElem) {
+                (elem.requestFullscreen || elem.webkitRequestFullscreen || elem.msRequestFullscreen).call(elem)?.catch(e => {
+                    console.error(e);
+                    return false;
+                });
+                return true;
+            } else {
+                (document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen).call(document);
+                return false;
+            }
+        }
+
         async function startCamera() {
             if (currentStream) {
                 currentStream.getTracks().forEach(track => track.stop());
@@ -109,14 +128,25 @@
 
         toggleBtn.addEventListener('click', () => {
             usingFront = !usingFront;
-            toggleBtn.textContent = usingFront ? 'Frontkamera' : 'Rückkamera';
             startCamera();
+        });
+
+        fullscreenBtn.addEventListener('click', () => {
+            if (toggleFullscreen()) {
+                fullscreenBtn.classList.add('active');
+            } else {
+                fullscreenBtn.classList.remove('active');
+            }
+        });
+
+        resetBtn.addEventListener('click', () => {
+            window.location.reload();
         });
 
         intervalSlider.addEventListener('input', () => {
             intervalValue.textContent = intervalSlider.value;
             if (stroboEvaluation) {
-                stroboEvaluation.updateStrobe('canvasStrobe', parseInt(intervalSlider.value));
+                stroboEvaluation.update('canvasStrobe', parseInt(intervalSlider.value));
             }
         });
         
@@ -163,7 +193,7 @@
                 intervalValue.textContent = intervalSlider.value;
                 intervalSlider.max = Math.floor(frames.length / 5);
                 stroboEvaluation = createStroboEvaluation(frames);
-                stroboEvaluation.updateStrobe('canvasStrobe', parseInt(intervalSlider.value));
+                stroboEvaluation.update('canvasStrobe', parseInt(intervalSlider.value));
             }
         }
             
