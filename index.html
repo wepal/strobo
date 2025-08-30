@@ -140,13 +140,7 @@
 
                         // cv.Mat
                         let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                        let matRGBA = cv.matFromImageData(imageData);
-                        let matRGB = new cv.Mat();
-                        cv.cvtColor(matRGBA, matRGB, cv.COLOR_RGBA2RGB); // jetzt 3 Kanäle
-                        matRGBA.delete();
-
-                        // Frame puffern
-                        frames.push(matRGB);
+                        frames.push(imageData);
 
                         // nächstes Frame
                         requestAnimationFrame(captureFrame);
@@ -166,91 +160,87 @@
                     // Slider-Wert anzeigen
                     intervalValue.textContent = intervalSlider.value;
 
+                    prepareEvaluation();
                     updateStrobe(parseInt(intervalSlider.value));
                 }
             });
+
+            let background;
+            let frameRGBA;
+            let framesRGB = [];
+            let maxDiff;
+            let maxAbsdiff;
+            let diff;
+            let absDiff;
+            let absDiff3;
+            let mask;
+            let strobeMat;
+            let strobeDisplay;
+
+            function prepareEvaluation(){
+                const w = video.videoWidth;
+                const h = video.videoHeight;
+
+                //frames
+                for (let i = 0; i < frames.length; i++) {
+                    const imageData = frames[i];
+                    let matRGBA = cv.matFromImageData(imageData);
+                    let matRGB = new cv.Mat();
+                    cv.cvtColor(matRGBA, matRGB, cv.COLOR_RGBA2RGB);
+                    let matRGB32F = new cv.Mat();
+                    matRGB.convertTo(matRGB32F, cv.CV_32F);
+                    matRGBA.delete();
+                    matRGB.delete();
+                    framesRGB.push(matRGB32F);
+                }
+
+                background = new cv.Mat.zeros(h, w, cv.CV_32FC3);
+                calcBackground();
+                maxDiff = new cv.Mat.zeros(h, w, cv.CV_32FC3);
+                maxAbsDiff = new cv.Mat.zeros(h, w, cv.CV_32F);
+                diff = new cv.Mat(h, w, cv.CV_32FC3);
+                absDiff = new cv.Mat(h, w, cv.CV_32F);
+                absDiff3 = new cv.Mat(h, w, cv.CV_32FC3);
+                mask = new cv.Mat(h, w, cv.CV_8U);
+                strobeMat = new cv.Mat(h, w, cv.CV_32FC3);
+                strobeDisplay = new cv.Mat(h, w, cv.CV_8UC3);
+            }
+
+            function calcBackground(){
+                framesRGB.forEach(f => {
+                    cv.add(background, f, background);                    
+                });
+
+                // divide background by number of frames
+                const m = 1.0 / framesRGB.length;
+                const scalar = new cv.Scalar(m, m, m)
+                const scalarMat = new cv.Mat(background.rows, background.cols, background.type(), scalar);
+                cv.multiply(background, scalarMat, background);
+                scalarMat.delete();
+            }
 
             function updateStrobe(interval) {
                 console.log('updateStrobe...');
                 if (frames.length === 0) return;
 
-                // 1. Frames auswählen
-                const selected = [];
+                maxDiff.setTo(new cv.Scalar(0, 0, 0));
+                maxAbsDiff.setTo(new cv.Scalar(0));
+
                 for (let i = 0; i < frames.length; i += interval) {
-                    const mat = frames[i];
-                    const mat32 = new cv.Mat();
-                    mat.convertTo(mat32, cv.CV_32F);
-                    selected.push(mat32);
-                }
-
-                const background = selected[0].clone();
-                for (let i = 1; i < selected.length; i++) {
-                    const mat = selected[i];
-                    cv.add(background, mat, background);
-
-                }
-                const scalar = new cv.Mat(background.rows, background.cols, background.type(), new cv.Scalar(1.0 / selected.length, 1.0 / selected.length, 1.0 / selected.length, 1.0));
-                cv.multiply(background, scalar, background);
-                scalar.delete();
-
-                // 3. Maximale Abweichung pro Pixel
-                const rows = selected[0].rows;
-                const cols = selected[0].cols;
-                const maxDiff = new cv.Mat.zeros(rows, cols, selected[0].type());
-                const maxAbsDiff = new cv.Mat.zeros(rows, cols, cv.CV_32F);
-                selected.forEach(f => {
-                    const diff = new cv.Mat();
-                    cv.subtract(f, background, diff);
-
-                    const absDiff3 = new cv.Mat();
-                    cv.absdiff(f, background, absDiff3);
-                    //const absDiffChannels = new cv.MatVector();
-                    //cv.split(absDiff3, absDiffChannels);
-                    
-                    //const absDiff = maxAbsDiff.clone();// new cv.Mat();
-                    //cv.max(absDiffChannels.get(0), absDiffChannels.get(1), absDiff);
-                    //cv.max(absDiff, absDiffChannels.get(2), absDiff);
-
-                    /*let tmp = new cv.Mat();
-                    cv.max(absDiffChannels.get(0), absDiffChannels.get(1), tmp);
-                    let absDiff = new cv.Mat();
-                    cv.max(tmp, absDiffChannels.get(2), absDiff);
-                    tmp.delete();*/
-
-                    const absDiff = new cv.Mat();
+                    const frame = framesRGB[i];
+                    cv.subtract(frame, background, diff);
+                    cv.absdiff(frame, background, absDiff3);
                     cv.cvtColor(absDiff3, absDiff, cv.COLOR_RGB2GRAY);
-
-                    /*absDiffChannels.get(0).delete();
-                    absDiffChannels.get(1).delete();
-                    absDiffChannels.get(2).delete();
-                    absDiffChannels.delete();
-                    absDiff3.delete();*/
-
-                    const mask = new cv.Mat();
                     cv.compare(absDiff, maxAbsDiff, mask, cv.CMP_GT);
                     diff.copyTo(maxDiff, mask);
                     absDiff.copyTo(maxAbsDiff, mask);
+                }
 
-                    absDiff.delete();
-                    mask.delete();
-                    diff.delete();
-                });
-
-                const strobeMat = selected[0].clone();
+                background.copyTo(strobeMat);
                 cv.add(strobeMat, maxDiff, strobeMat);
 
-                // 4. Anzeige
-                const strobeDisplay = new cv.Mat();
-                strobeMat.convertTo(strobeDisplay, cv.CV_8U, 1, 0);
+                strobeMat.convertTo(strobeDisplay, cv.CV_8U);
                 cv.imshow('canvasStrobe', strobeDisplay);
-
-                // 5. Cleanup
-                selected.forEach(f => f.delete());
-                background.delete();
-                strobeMat.delete();
-                //strobeDisplay.delete();
-                maxDiff.delete();
-                maxAbsDiff.delete();
 
                 console.log('updateStrobe finished.');
             }
