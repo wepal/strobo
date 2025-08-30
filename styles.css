@@ -65,15 +65,33 @@ canvas {
     transform: translateX(-50%);
     width: 4rem;
     height: 4rem;
-    background: red;
+    background: white;
     border-radius: 50%;
     cursor: pointer;
-    border: none;
+    border: gray .2rem solid;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     transition: background 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+#shutter::after {
+    content: "";
+    display: block;
+    width: 2rem;
+    height: 2rem;
+    background: red;
+    border-radius: 50%;
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    z-index: 3;
+}
+
+#shutter.active::after {
+    border-radius: 0;
+    transition: border-radius 0.2s;
 }
 
 #shutter.disabled {
@@ -82,9 +100,9 @@ canvas {
     opacity: 0.5;
 }
 
-#shutter.active {
+/*#shutter.active {
     background: darkred;
-}
+}*/
 
 #toggle-camera {
     position: absolute;

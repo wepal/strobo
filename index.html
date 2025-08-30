@@ -48,6 +48,7 @@
         let opencvReady = false;
         let cameraReady = false;
         let recording = false;
+        let fps = 0;
         let frames = [];
         let stroboEvaluation;
 
@@ -67,12 +68,17 @@
         
         function updateDebugInfo(){
             const debugInfo = document.getElementById('debugInfo');
+
+            const params = new URLSearchParams(window.location.search);
+            debugInfo.style.display = (params.get('debug') === '1') ? 'flex' : 'none';
+
             debugInfo.innerHTML = `
                 <p>Using Front Camera: ${usingFront}</p>
                 <p>Recording: ${recording}</p>
                 <p>Frames Captured: ${frames.length}</p>
                 <p>Window w/h: ${window.innerWidth}/${window.innerHeight}px</p>
                 <p>Video w/h: ${video.videoWidth}/${video.videoHeight}px</p>
+                <p>FPS: ${fps}</p>
                 <p>OpenCV Ready: ${opencvReady}</p>
                 <p>Camera Ready: ${cameraReady}</p>
             `;
@@ -87,9 +93,10 @@
 
             try {
                 currentStream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: 640, height: 480, frameRate: 30, facingMode }
+                    video: { width: 640, height: 480, frameRate: { ideal: 30 }, facingMode }
                 });
                 video.srcObject = currentStream;
+                fps = currentStream.getVideoTracks()[0].getSettings().frameRate;
                 cameraReady = true;
             } catch (err) {
                 alert("Kamera konnte nicht geöffnet werden: " + err);
