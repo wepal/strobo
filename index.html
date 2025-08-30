@@ -166,7 +166,6 @@
             });
 
             let background;
-            let frameRGBA;
             let framesRGB = [];
             let maxDiff;
             let maxAbsdiff;
@@ -176,24 +175,29 @@
             let mask;
             let strobeMat;
             let strobeDisplay;
+            let frame32F;
 
             function prepareEvaluation(){
+                console.log('prepareEvaluation...');
                 const w = video.videoWidth;
                 const h = video.videoHeight;
-
-                //frames
+                console.log(`Video dimensions: ${frames.length}x(${w}x${h})`);
+                bytesOpenCv = frames.length * w * h * 3;
+                console.log(`Approx. memory for OpenCV Mats: ${Math.round(bytesOpenCv / 1024 / 1024)} MB`);
+                
+                // convert to RGB cv.Mat
                 for (let i = 0; i < frames.length; i++) {
                     const imageData = frames[i];
                     let matRGBA = cv.matFromImageData(imageData);
+                    frames[i] = null;
                     let matRGB = new cv.Mat();
                     cv.cvtColor(matRGBA, matRGB, cv.COLOR_RGBA2RGB);
-                    let matRGB32F = new cv.Mat();
-                    matRGB.convertTo(matRGB32F, cv.CV_32F);
                     matRGBA.delete();
-                    matRGB.delete();
-                    framesRGB.push(matRGB32F);
+                    framesRGB.push(matRGB);
                 }
-
+                frames = null;
+    
+                frame32F = new cv.Mat(h, w, cv.CV_32FC3);
                 background = new cv.Mat.zeros(h, w, cv.CV_32FC3);
                 calcBackground();
                 maxDiff = new cv.Mat.zeros(h, w, cv.CV_32FC3);
@@ -208,7 +212,8 @@
 
             function calcBackground(){
                 framesRGB.forEach(f => {
-                    cv.add(background, f, background);                    
+                    f.convertTo(frame32F, cv.CV_32F);
+                    cv.add(background, frame32F, background);                    
                 });
 
                 // divide background by number of frames
@@ -221,15 +226,16 @@
 
             function updateStrobe(interval) {
                 console.log('updateStrobe...');
-                if (frames.length === 0) return;
+                if (framesRGB.length === 0) return;
 
                 maxDiff.setTo(new cv.Scalar(0, 0, 0));
                 maxAbsDiff.setTo(new cv.Scalar(0));
 
-                for (let i = 0; i < frames.length; i += interval) {
+                for (let i = 0; i < framesRGB.length; i += interval) {
                     const frame = framesRGB[i];
-                    cv.subtract(frame, background, diff);
-                    cv.absdiff(frame, background, absDiff3);
+                    frame.convertTo(frame32F, cv.CV_32F);
+                    cv.subtract(frame32F, background, diff);
+                    cv.absdiff(frame32F, background, absDiff3);
                     cv.cvtColor(absDiff3, absDiff, cv.COLOR_RGB2GRAY);
                     cv.compare(absDiff, maxAbsDiff, mask, cv.CMP_GT);
                     diff.copyTo(maxDiff, mask);
