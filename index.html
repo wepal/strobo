@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Stroboskopbild mit OpenCV.js</title>
+    <script async src="https://docs.opencv.org/4.x/opencv.js" onload="onOpenCvReady();"></script>
+    <style>
+        video,
+        canvas {
+            max-width: 45%;
+            margin: 5px;
+            border: 1px solid #aaa;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Live-Stroboskop mit OpenCV.js</h2>
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvasOutput"></canvas>
+
+    <script>
+        let video = document.getElementById("video");
+        let cap, src, dst, accumulator;
+        let streaming = false;
+
+        async function initCamera() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            video.srcObject = stream;
+            return new Promise(resolve => {
+                video.onloadedmetadata = () => {
+                    video.play();
+                    resolve();
+                };
+            });
+        }
+
+        function onOpenCvReady() {
+            initCamera().then(() => {
+                // Jetzt hat das Video echte Dimensionen
+                let w = video.videoWidth;
+                let h = video.videoHeight;
+                console.log(`Video dimensions: ${w}x${h}`);
+
+                //workaround for opencv.js
+                video.width = w;
+                video.height = h;
+
+                cap = new cv.VideoCapture(video);
+                src = new cv.Mat(h, w, cv.CV_8UC4);
+                dst = new cv.Mat(h, w, cv.CV_8UC4);
+                accumulator = new cv.Mat(h, w, cv.CV_8UC4, new cv.Scalar());
+
+                streaming = true;
+                requestAnimationFrame(processVideo);
+            });
+        }
+
+        function processVideo() {
+            if (!streaming) return;
+
+            let w = video.videoWidth;
+            let h = video.videoHeight;
+            console.log(`processVideo: Video dimensions: ${w}x${h}`);
+
+            cap.read(src);
+
+            // Stroboskop-Effekt: Pixelweise Maximum
+            cv.max(src, accumulator, accumulator);
+
+            cv.imshow("canvasOutput", accumulator);
+
+            requestAnimationFrame(processVideo);
+        }
+    </script>
+</body>
+
+</html>
