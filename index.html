@@ -3,10 +3,9 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Stroboskop-Video</title>
+    <title>Strobo</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://docs.opencv.org/4.x/opencv.js"></script>
-    <script type="module" src="strobo.js"></script>
     <style>
         @import url('styles.css');
     </style>
@@ -147,12 +146,6 @@
             intervalValue.textContent = intervalSlider.value;
             if (stroboEvaluation) {
                 stroboEvaluation.update('canvasStrobe', parseInt(intervalSlider.value));
-            }
-        });
-        
-        document.addEventListener('keydown', (e) => {
-            if (e.code === 'VolumeUp' || e.code === 'VolumeDown') {
-                onShutter();
             }
         });
 
