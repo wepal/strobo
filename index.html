@@ -4,13 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <title>Stroboskop-Video</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        html,
-        body {
+        html, body {
             margin: 0;
             padding: 0;
             height: 100%;
-            overflow: hidden;
             background: black;
             display: flex;
             flex-direction: column;
@@ -20,50 +19,109 @@
         #strobe-container {
             flex: 1;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
+            justify-content: flex-start; /* oben anfangen */
             align-items: center;
             position: relative;
+            max-width: 100%;
+            max-height: 100%;
         }
 
         video,
         canvas {
+            max-width: 100%;
+            max-height: 100%;
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
         }
 
-        #controls {
+        .controls {    
+            position: absolute;    /* Controls über dem Bild */
+            bottom: 2vw;           /* Abstand vom unteren Rand */
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 4vw;
+            z-index: 2;
+            pointer-events: auto;
+        }
+
+        #debugInfo {
             position: absolute;
-            bottom: 20px;
+            top: 2vw;
+            left: 0;
             width: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 10px;
+            gap: 4vw;
+            z-index: 2;
+            pointer-events: auto;
         }
 
         #shutter {
-            width: 70px;
-            height: 70px;
+            width: 16vw;
+            height: 16vw;
+            min-width: 60px;
+            min-height: 60px;
+            max-width: 100px;
+            max-height: 100px;
             background: red;
             border-radius: 50%;
             cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         #shutter.active {
             background: darkred;
         }
 
-        #interval-slider {
-            width: 200px;
+        #toggle-camera {
+            font-size: 4vw;
+            min-width: 80px;
+            min-height: 40px;
+            padding: 2vw 4vw;
+            border-radius: 2vw;
+            border: none;
+            background: #222;
+            color: #fff;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            transition: background 0.2s;
         }
+
+        #toggle-camera:active {
+            background: #444;
+        }
+
+        #interval-slider {
+            width: 40vw;
+            min-width: 120px;
+            max-width: 300px;
+            accent-color: #ff3333;
+        }
+
+        #interval-value {
+            font-size: 5vw;
+            color: #fff;
+            min-width: 2em;
+            text-align: center;
+        }
+
     </style>
     <script async src="https://docs.opencv.org/4.x/opencv.js" onload="onOpenCvReady();"></script>
     <script type="module" src="strobo.js"></script>
     <script>
         function onOpenCvReady() {
             console.log('OpenCV.js ist geladen.');
-            // Hier kannst du alles initialisieren, z.B. Video, Canvas, Frames-Array
             cv['onRuntimeInitialized'] = () => {
                 console.log('OpenCV.js ready');
             }
@@ -77,16 +135,17 @@
     <!-- Live-Video -->
     <div id="camera-container">
         <video id="video" autoplay playsinline></video>
-        <div id="controls">
+        <div class="controls">
             <div id="shutter"></div>
             <button id="toggle-camera">Frontkamera</button>
         </div>
+        <div id="debugInfo"></div>
     </div>
 
     <!-- Stroboskopbild -->
-    <div id="strobe-container" style="display:none; flex-direction:column; align-items:center;">
+    <div id="strobe-container" style="display:none;">
         <canvas id="canvasStrobe"></canvas>
-        <div id="controls">
+        <div class="controls">
             <input type="range" id="interval-slider" min="1" max="10" value="3" />
             <span id="interval-value">3</span>
         </div>
@@ -113,9 +172,19 @@
             let frames = [];
             let stroboEvaluation;
 
+            function updateDebugInfo(){
+                const debugInfo = document.getElementById('debugInfo');
+                debugInfo.innerHTML = `
+                    <p>Using Front Camera: ${usingFront}</p>
+                    <p>Recording: ${recording}</p>
+                    <p>Frames Captured: ${frames.length}</p>
+                    <p>Window w/h: ${window.innerWidth}/${window.innerHeight}px</p>
+                    <p>Video w/h: ${video.videoWidth}/${video.videoHeight}px</p>
+                `;
+            }
+
             async function startCamera() {
                 if (currentStream) {
-                    // Alte Streams stoppen
                     currentStream.getTracks().forEach(track => track.stop());
                 }
 
@@ -129,9 +198,10 @@
                 } catch (err) {
                     alert("Kamera konnte nicht geöffnet werden: " + err);
                 }
+
+                updateDebugInfo();
             }
 
-            // Toggle-Button Event
             toggleBtn.addEventListener('click', () => {
                 usingFront = !usingFront;
                 toggleBtn.textContent = usingFront ? 'Frontkamera' : 'Rückkamera';
@@ -155,7 +225,6 @@
 
             function onShutter() {
                 if (!recording) {
-                    // Aufnahme starten
                     recording = true;
                     shutter.classList.add('active');
                     frames = [];
@@ -165,34 +234,23 @@
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
 
-
                     const captureFrame = () => {
                         if (!recording) return;
-
-                        // Bild ins Canvas zeichnen
                         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
                         let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                         frames.push(imageData);
-
-                        // nächstes Frame
+                        updateDebugInfo();
                         requestAnimationFrame(captureFrame);
                     }
                     captureFrame();
 
                 } else {
-                    // Aufnahme stoppen
                     recording = false;
                     shutter.classList.remove('active');
-
-                    // Live-Bild ausblenden
                     cameraContainer.style.display = 'none';
                     strobeContainer.style.display = 'flex';
                     shutter.style.display = 'none';
-
-                    // Slider-Wert anzeigen
                     intervalValue.textContent = intervalSlider.value;
-
                     stroboEvaluation = createStroboEvaluation(frames);
                     stroboEvaluation.updateStrobe('canvasStrobe', parseInt(intervalSlider.value));
                 }
