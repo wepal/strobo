@@ -5,139 +5,11 @@
     <meta charset="UTF-8">
     <title>Stroboskop-Video</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            background: black;
-            display: flex;
-            flex-direction: column;
-        }
-
-        #camera-container,
-        #strobe-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-start; /* oben anfangen */
-            align-items: center;
-            position: relative;
-            max-width: 100%;
-            max-height: 100%;
-        }
-
-        video,
-        canvas {
-            max-width: 100%;
-            max-height: 100%;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-
-        #captureControls {    
-            position: absolute;    /* Controls über dem Bild */
-            bottom: 2vw;           /* Abstand vom unteren Rand */
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 4vw;
-            z-index: 2;
-            pointer-events: auto;
-        }
-
-        #stroboControls {
-            position: absolute;
-            width: 90%;
-            bottom: 2vw;
-            display: flex;
-            flex-direction: row;
-            justify-content: center;
-            gap: 2vw;
-            z-index: 2;
-            pointer-events: auto;
-        }
-
-        #debugInfo {
-            position: absolute;
-            top: 2vw;
-            left: 0;
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 4vw;
-            z-index: 2;
-            pointer-events: auto;
-        }
-
-        #shutter {
-            width: 16vw;
-            height: 16vw;
-            min-width: 60px;
-            min-height: 60px;
-            max-width: 100px;
-            max-height: 100px;
-            background: red;
-            border-radius: 50%;
-            cursor: pointer;
-            border: none;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            transition: background 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        #shutter.active {
-            background: darkred;
-        }
-
-        #toggle-camera {
-            font-size: 4vw;
-            min-width: 80px;
-            min-height: 40px;
-            padding: 2vw 4vw;
-            border-radius: 2vw;
-            border: none;
-            background: #222;
-            color: #fff;
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            transition: background 0.2s;
-        }
-
-        #toggle-camera:active {
-            background: #444;
-        }
-
-        #interval-slider {
-            flex: 1;
-            accent-color: #ff3333;
-        }
-
-        #interval-value {
-            font-size: 5vw;
-            color: #fff;
-            min-width: 2em;
-            text-align: center;
-        }
-
-    </style>
-    <script async src="https://docs.opencv.org/4.x/opencv.js" onload="onOpenCvReady();"></script>
+    <script src="https://docs.opencv.org/4.x/opencv.js"></script>
     <script type="module" src="strobo.js"></script>
-    <script>
-        function onOpenCvReady() {
-            console.log('OpenCV.js ist geladen.');
-            cv['onRuntimeInitialized'] = () => {
-                console.log('OpenCV.js ready');
-            }
-            console.log('onOpenCvReady called');
-        }
-    </script>
+    <style>
+        @import url('styles.css');
+    </style>
 </head>
 
 <body>
@@ -146,7 +18,7 @@
     <div id="camera-container">
         <video id="video" autoplay playsinline></video>
         <div id="captureControls">
-            <div id="shutter"></div>
+            <div id="shutter" class="disabled"></div>
             <button id="toggle-camera">Frontkamera</button>
         </div>
         <div id="debugInfo"></div>
@@ -165,113 +37,135 @@
 
         import { createStroboEvaluation } from './strobo.js';
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            console.log('DOM fully loaded and parsed');
+        const video = document.getElementById('video');
+        const shutter = document.getElementById('shutter');
+        const toggleBtn = document.getElementById('toggle-camera');
+        const strobeContainer = document.getElementById('strobe-container');
+        const intervalSlider = document.getElementById('interval-slider');
+        const intervalValue = document.getElementById('interval-value');
+        const cameraContainer = document.getElementById('camera-container');
 
-            const video = document.getElementById('video');
-            const shutter = document.getElementById('shutter');
-            const toggleBtn = document.getElementById('toggle-camera');
-            const strobeContainer = document.getElementById('strobe-container');
-            const intervalSlider = document.getElementById('interval-slider');
-            const intervalValue = document.getElementById('interval-value');
-            const cameraContainer = document.getElementById('camera-container');
+        let usingFront = true; // Frontkamera aktiv
+        let currentStream;
+        let opencvReady = false;
+        let cameraReady = false;
+        let recording = false;
+        let frames = [];
+        let stroboEvaluation;
 
-            let usingFront = true; // Frontkamera aktiv
-            let currentStream;
-            let recording = false;
-            let frames = [];
-            let stroboEvaluation;
+        opencvReady = (typeof cv !== 'undefined' && typeof cv.Mat === 'function');
+        cv['onRuntimeInitialized'] = () => {
+            opencvReady = true;
+            updateReady();
+        }
+    
+        function updateReady(){
+            const ready = cameraReady && opencvReady;
+            if(ready){
+                shutter.classList.remove('disabled');
+            }
+            updateDebugInfo();
+        }
+        
+        function updateDebugInfo(){
+            const debugInfo = document.getElementById('debugInfo');
+            debugInfo.innerHTML = `
+                <p>Using Front Camera: ${usingFront}</p>
+                <p>Recording: ${recording}</p>
+                <p>Frames Captured: ${frames.length}</p>
+                <p>Window w/h: ${window.innerWidth}/${window.innerHeight}px</p>
+                <p>Video w/h: ${video.videoWidth}/${video.videoHeight}px</p>
+                <p>OpenCV Ready: ${opencvReady}</p>
+                <p>Camera Ready: ${cameraReady}</p>
+            `;
+        }
 
-            function updateDebugInfo(){
-                const debugInfo = document.getElementById('debugInfo');
-                debugInfo.innerHTML = `
-                    <p>Using Front Camera: ${usingFront}</p>
-                    <p>Recording: ${recording}</p>
-                    <p>Frames Captured: ${frames.length}</p>
-                    <p>Window w/h: ${window.innerWidth}/${window.innerHeight}px</p>
-                    <p>Video w/h: ${video.videoWidth}/${video.videoHeight}px</p>
-                `;
+        async function startCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
             }
 
-            async function startCamera() {
-                if (currentStream) {
-                    currentStream.getTracks().forEach(track => track.stop());
-                }
+            const facingMode = usingFront ? 'user' : 'environment';
 
-                const facingMode = usingFront ? 'user' : 'environment';
-
-                try {
-                    currentStream = await navigator.mediaDevices.getUserMedia({
-                        video: { width: 640, height: 480, frameRate: 30, facingMode }
-                    });
-                    video.srcObject = currentStream;
-                } catch (err) {
-                    alert("Kamera konnte nicht geöffnet werden: " + err);
-                }
-
-                updateDebugInfo();
+            try {
+                currentStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480, frameRate: 30, facingMode }
+                });
+                video.srcObject = currentStream;
+                cameraReady = true;
+            } catch (err) {
+                alert("Kamera konnte nicht geöffnet werden: " + err);
+                cameraReady = false;
             }
 
-            toggleBtn.addEventListener('click', () => {
-                usingFront = !usingFront;
-                toggleBtn.textContent = usingFront ? 'Frontkamera' : 'Rückkamera';
-                startCamera();
-            });
+            updateReady();
+            updateDebugInfo();
+        }
 
-            intervalSlider.addEventListener('input', () => {
-                intervalValue.textContent = intervalSlider.value;
-                if (stroboEvaluation) {
-                    stroboEvaluation.updateStrobe('canvasStrobe', parseInt(intervalSlider.value));
-                }
-            });
-            
-            document.addEventListener('keydown', (e) => {
-                if (e.code === 'VolumeUp' || e.code === 'VolumeDown') {
-                    onShutter();
-                }
-            });
-
-            shutter.addEventListener('click', onShutter);
-
-            function onShutter() {
-                if (!recording) {
-                    recording = true;
-                    shutter.classList.add('active');
-                    frames = [];
-
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-
-                    const captureFrame = (now, metadata) => {
-                        if (!recording) return;
-                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                        let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                        frames.push(imageData);
-                        updateDebugInfo();
-                        video.requestVideoFrameCallback(captureFrame);
-                    };
-
-                    video.requestVideoFrameCallback(captureFrame);
-
-                } else {
-                    recording = false;
-                    shutter.classList.remove('active');
-                    cameraContainer.style.display = 'none';
-                    strobeContainer.style.display = 'flex';
-                    shutter.style.display = 'none';
-                    intervalValue.textContent = intervalSlider.value;
-                    intervalSlider.max = Math.floor(frames.length / 5);
-                    stroboEvaluation = createStroboEvaluation(frames);
-                    stroboEvaluation.updateStrobe('canvasStrobe', parseInt(intervalSlider.value));
-                }
-            }
-
+        toggleBtn.addEventListener('click', () => {
+            usingFront = !usingFront;
+            toggleBtn.textContent = usingFront ? 'Frontkamera' : 'Rückkamera';
             startCamera();
-
         });
+
+        intervalSlider.addEventListener('input', () => {
+            intervalValue.textContent = intervalSlider.value;
+            if (stroboEvaluation) {
+                stroboEvaluation.updateStrobe('canvasStrobe', parseInt(intervalSlider.value));
+            }
+        });
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'VolumeUp' || e.code === 'VolumeDown') {
+                onShutter();
+            }
+        });
+
+        shutter.addEventListener('click', () => {
+            if (!shutter.classList.contains('disabled')) {
+                onShutter();
+            }
+        });
+
+        function onShutter() {
+            if (!recording) {
+                recording = true;
+                shutter.classList.add('active');
+                frames = [];
+
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+
+                const captureFrame = (now, metadata) => {
+                    if (!recording) return;
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    frames.push(imageData);
+                    updateDebugInfo();
+                    video.requestVideoFrameCallback(captureFrame);
+                };
+
+                video.requestVideoFrameCallback(captureFrame);
+
+            } else {
+                recording = false;
+                shutter.classList.remove('active');
+                cameraContainer.style.display = 'none';
+                strobeContainer.style.display = 'flex';
+                shutter.style.display = 'none';
+                intervalValue.textContent = intervalSlider.value;
+                intervalSlider.max = Math.floor(frames.length / 5);
+                stroboEvaluation = createStroboEvaluation(frames);
+                stroboEvaluation.updateStrobe('canvasStrobe', parseInt(intervalSlider.value));
+            }
+        }
+            
+        startCamera();
+
     </script>
+            
 </body>
 
 </html>
