@@ -47,6 +47,10 @@
         const playButton = document.getElementById('play-button');
         const cameraContainer = document.getElementById('camera-container');
 
+        const params = new URLSearchParams(window.location.search);
+        const showDebugInfo = params.get('debug') === '1'
+        const idealFrameSize = (params.get('resolution')==720 ? { width: 1280, height: 720 } : { width: 640, height: 480 });
+
         let usingFrontCam = false;
         let currentStream;
         let opencvReady = false;
@@ -76,8 +80,7 @@
         function updateDebugInfo(){
             const debugInfo = document.getElementById('debugInfo');
 
-            const params = new URLSearchParams(window.location.search);
-            debugInfo.style.display = (params.get('debug') === '1') ? 'flex' : 'none';
+            debugInfo.style.display = showDebugInfo ? 'flex' : 'none';
 
             debugInfo.innerHTML = `
                 <p>Using Front Camera: ${usingFrontCam}</p>
@@ -114,7 +117,12 @@
 
             try {
                 currentStream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: 640, height: 480, frameRate: { ideal: 30 }, facingMode }
+                    video: {
+                        width: { ideal: idealFrameSize.width },
+                        height: { ideal: idealFrameSize.height },
+                        frameRate: { ideal: 30 },
+                        facingMode
+                    }
                 });
                 video.srcObject = currentStream;
                 fps = currentStream.getVideoTracks()[0].getSettings().frameRate;
