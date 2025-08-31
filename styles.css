@@ -8,6 +8,24 @@ body {
     flex-direction: column;
 }
 
+#wait {
+    display: none;
+    margin: auto;    color: white;
+    text-align: center;
+    font-family:'Segoe UI', sans-serif;
+    font-size: 1.5rem;
+}
+
+#wait-image {
+    background-image: url('juggle.svg');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    width: 10rem;
+    height: 10rem;
+    margin: 1rem;
+}
+
 #camera-container,
 #strobe-container {
     flex: 1;

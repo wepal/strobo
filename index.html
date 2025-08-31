@@ -9,12 +9,18 @@
     <style>
         @import url('styles.css');
     </style>
+    <link rel="preload" as="image" href="juggle.svg">
 </head>
 
 <body>
 
     <div id="reset"></div>
     <div id="fullscreen"></div>
+
+    <div id="wait">
+        <div id="wait-image"></div>
+        <div>Please wait...</div>
+    </div>
 
     <!-- Live-Video -->
     <div id="camera-container">
@@ -37,6 +43,7 @@
 
         import { createStroboEvaluation } from './strobo.js';
 
+        const wait = document.getElementById('wait');
         const video = document.getElementById('video');
         const shutter = document.getElementById('shutter');
         const toggleBtn = document.getElementById('toggle-camera');
@@ -242,12 +249,19 @@
         function stopRecording() {
             recording = false;
             shutter.classList.remove('active');
+            wait.style.display = 'block';
             cameraContainer.style.display = 'none';
-            strobeContainer.style.display = 'flex';
             shutter.style.display = 'none';
-            intervalSlider.max = Math.floor(frames.length / 5);
-            stroboEvaluation = createStroboEvaluation(frames);
-            updateStrobeImage();
+            console.log('recording finished')
+            // evaluation is slow, update screen first
+            setTimeout(() => {
+                stroboEvaluation = createStroboEvaluation(frames);
+                updateStrobeImage();
+                intervalSlider.max = Math.floor(frames.length / 4);
+                wait.style.display = 'none';
+                strobeContainer.style.display = 'flex';
+                console.log('evaluation finished');
+            }, 50);
         }
 
         function updateStrobeImage(){
