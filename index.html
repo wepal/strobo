@@ -56,7 +56,8 @@
         let frames = [];
         let stroboEvaluation;
         let strobeSeries;
-        let playing = false
+        let playing = false;
+        let animationIndex = 0;
 
         opencvReady = (typeof cv !== 'undefined' && typeof cv.Mat === 'function');
         cv['onRuntimeInitialized'] = () => {
@@ -173,17 +174,17 @@
             const context = canvas.getContext('2d');
             canvas.width = strobeSeries[0].width;
             canvas.height = strobeSeries[0].height;
-            let index = 0;
             const fps = 10;
             let nextTime = performance.now() + (1000 / fps);
 
             function showNext(){
-                if (index >= strobeSeries.length) {
-                    index = 0; //strobeSeries changed
+                if (animationIndex >= strobeSeries.length) {
+                    //strobeSeries changed
+                    animationIndex = animationIndex % strobeSeries.length;
                 }
-                const imageData = strobeSeries[index];
+                const imageData = strobeSeries[animationIndex];
                 context.putImageData(imageData, 0, 0);
-                index = (index + 1) % strobeSeries.length;
+                animationIndex = (animationIndex + 1) % strobeSeries.length;
             }
 
             function showAnimationFrame(time) {
