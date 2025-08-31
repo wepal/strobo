@@ -52,17 +52,38 @@ export function createStroboEvaluation(frames) {
     }
 
     function calcBackground() {
-        framesRGB.forEach(f => {
-            f.convertTo(frame32F, cv.CV_32F);
-            cv.add(background, frame32F, background);
-        });
+        const start = performance.now();
+        
+        // using all frames would be far too slow
+        const numBgFrames = 5;
 
-        // divide background by number of frames
-        const m = 1.0 / framesRGB.length;
-        const scalar = new cv.Scalar(m, m, m)
-        const scalarMat = new cv.Mat(background.rows, background.cols, background.type(), scalar);
-        cv.multiply(background, scalarMat, background);
-        scalarMat.delete();
+        // be sure to include first and last frame
+        const step = (framesRGB.length - 1) / (numBgFrames-1);
+        let frames = [];
+        for (let i = 0; i < framesRGB.length; i+=step) {
+            frames.push(framesRGB[Math.round(i)]);
+        }
+                
+        const rows = frames[0].rows;
+        const cols = frames[0].cols;
+        const channels = frames[0].channels();
+        const nFrames = frames.length;
+        const medianIndex = Math.floor(nFrames / 2);
+        const pixelValues = [0,0,0,0,0];
+        
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                for (let ch = 0; ch < channels; ch++) {
+                    for (let f = 0; f < nFrames; f++) {
+                        pixelValues[f] = frames[f].ucharPtr(r, c)[ch];
+                    }
+
+                    const sorted = pixelValues.sort((a, b) => a - b);
+                    background.floatPtr(r, c)[ch] = sorted[medianIndex];
+                }
+            }
+        }
+        console.log(`medianBackground took ${Math.round(performance.now() - start)} ms`);
     }
 
     function computeStrobeImage(interval, offset=0) {
