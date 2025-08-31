@@ -29,7 +29,7 @@
         <canvas id="canvasStrobe"></canvas>
         <div id="stroboControls">
             <input type="range" id="interval-slider" min="1" max="10" value="3" />
-            <span id="interval-value">3</span>
+            <div id="play-button"></div>
         </div>
     </div>
 
@@ -44,7 +44,7 @@
         const fullscreenBtn = document.getElementById('fullscreen');
         const strobeContainer = document.getElementById('strobe-container');
         const intervalSlider = document.getElementById('interval-slider');
-        const intervalValue = document.getElementById('interval-value');
+        const playButton = document.getElementById('play-button');
         const cameraContainer = document.getElementById('camera-container');
 
         let usingFront = true; // Frontkamera aktiv
@@ -55,6 +55,7 @@
         let fps = 0;
         let frames = [];
         let stroboEvaluation;
+        let playing = false
 
         opencvReady = (typeof cv !== 'undefined' && typeof cv.Mat === 'function');
         cv['onRuntimeInitialized'] = () => {
@@ -143,13 +144,24 @@
         });
 
         intervalSlider.addEventListener('input', () => {
-            intervalValue.textContent = intervalSlider.value;
             updateStrobeImage();
         });
 
         shutter.addEventListener('click', () => {
             if (!shutter.classList.contains('disabled')) {
                 onShutter();
+            }
+        });
+
+        playButton.addEventListener('click', () => {
+            if (!playButton.classList.contains('disabled')) {
+                if(!playing){
+                    playButton.classList.add('active');
+                    playing = true;
+                } else {
+                    playButton.classList.remove('active');
+                    playing = false;
+                }
             }
         });
 
@@ -185,7 +197,6 @@
             cameraContainer.style.display = 'none';
             strobeContainer.style.display = 'flex';
             shutter.style.display = 'none';
-            intervalValue.textContent = intervalSlider.value;
             intervalSlider.max = Math.floor(frames.length / 5);
             stroboEvaluation = createStroboEvaluation(frames);
             updateStrobeImage();
