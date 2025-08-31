@@ -155,38 +155,49 @@
             }
         });
 
+        function startRecording() {
+            recording = true;
+            shutter.classList.add('active');
+            frames = [];
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            const captureFrame = (now, metadata) => {
+                if (!recording) return;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                frames.push(imageData);
+                updateDebugInfo();
+                if (frames.length < 500) {
+                    video.requestVideoFrameCallback(captureFrame);
+                } else {
+                    stopRecording();
+                }
+            };
+
+            video.requestVideoFrameCallback(captureFrame);
+        }
+
+        function stopRecording() {
+            recording = false;
+            shutter.classList.remove('active');
+            cameraContainer.style.display = 'none';
+            strobeContainer.style.display = 'flex';
+            shutter.style.display = 'none';
+            intervalValue.textContent = intervalSlider.value;
+            intervalSlider.max = Math.floor(frames.length / 5);
+            stroboEvaluation = createStroboEvaluation(frames);
+            stroboEvaluation.update('canvasStrobe', parseInt(intervalSlider.value));
+        }
+        
         function onShutter() {
             if (!recording) {
-                recording = true;
-                shutter.classList.add('active');
-                frames = [];
-
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d', { willReadFrequently: true });
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-
-                const captureFrame = (now, metadata) => {
-                    if (!recording) return;
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    frames.push(imageData);
-                    updateDebugInfo();
-                    video.requestVideoFrameCallback(captureFrame);
-                };
-
-                video.requestVideoFrameCallback(captureFrame);
-
+                startRecording();
             } else {
-                recording = false;
-                shutter.classList.remove('active');
-                cameraContainer.style.display = 'none';
-                strobeContainer.style.display = 'flex';
-                shutter.style.display = 'none';
-                intervalValue.textContent = intervalSlider.value;
-                intervalSlider.max = Math.floor(frames.length / 5);
-                stroboEvaluation = createStroboEvaluation(frames);
-                stroboEvaluation.update('canvasStrobe', parseInt(intervalSlider.value));
+                stopRecording();
             }
         }
             
