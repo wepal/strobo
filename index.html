@@ -47,7 +47,7 @@
         const playButton = document.getElementById('play-button');
         const cameraContainer = document.getElementById('camera-container');
 
-        let usingFront = true; // Frontkamera aktiv
+        let usingFrontCam = false;
         let currentStream;
         let opencvReady = false;
         let cameraReady = false;
@@ -80,7 +80,7 @@
             debugInfo.style.display = (params.get('debug') === '1') ? 'flex' : 'none';
 
             debugInfo.innerHTML = `
-                <p>Using Front Camera: ${usingFront}</p>
+                <p>Using Front Camera: ${usingFrontCam}</p>
                 <p>Recording: ${recording}</p>
                 <p>Frames Captured: ${frames.length}</p>
                 <p>Window w/h: ${window.innerWidth}/${window.innerHeight}px</p>
@@ -110,7 +110,7 @@
                 currentStream.getTracks().forEach(track => track.stop());
             }
 
-            const facingMode = usingFront ? 'user' : 'environment';
+            const facingMode = usingFrontCam ? 'user' : 'environment';
 
             try {
                 currentStream = await navigator.mediaDevices.getUserMedia({
@@ -129,7 +129,7 @@
         }
 
         toggleBtn.addEventListener('click', () => {
-            usingFront = !usingFront;
+            usingFrontCam = !usingFrontCam;
             startCamera();
         });
 
