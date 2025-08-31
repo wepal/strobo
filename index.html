@@ -144,9 +144,7 @@
 
         intervalSlider.addEventListener('input', () => {
             intervalValue.textContent = intervalSlider.value;
-            if (stroboEvaluation) {
-                stroboEvaluation.update('canvasStrobe', parseInt(intervalSlider.value));
-            }
+            updateStrobeImage();
         });
 
         shutter.addEventListener('click', () => {
@@ -190,7 +188,20 @@
             intervalValue.textContent = intervalSlider.value;
             intervalSlider.max = Math.floor(frames.length / 5);
             stroboEvaluation = createStroboEvaluation(frames);
-            stroboEvaluation.update('canvasStrobe', parseInt(intervalSlider.value));
+            updateStrobeImage();
+        }
+
+        function updateStrobeImage(){
+            const canvas = document.getElementById('canvasStrobe');
+            const context = canvas.getContext('2d');
+            if (stroboEvaluation) {
+                const imageData = stroboEvaluation.makeStrobeImage(parseInt(intervalSlider.value));
+                canvas.width = imageData.width;
+                canvas.height = imageData.height;   
+                context.putImageData(imageData, 0, 0);
+            } else {
+                context.clearRect(0, 0, canvas.width, canvas.height);
+            }
         }
         
         function onShutter() {

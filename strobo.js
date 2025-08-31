@@ -10,8 +10,9 @@ export function createStroboEvaluation(frames) {
     let absDiff;
     let absDiff3;
     let mask;
-    let strobeMat;
-    let strobeDisplay;
+    let strobe;
+    let strobe8U;
+    let strobe8UC4;
     let frame32F;
 
     function prepareEvaluation(frames) {
@@ -45,8 +46,9 @@ export function createStroboEvaluation(frames) {
         absDiff = new cv.Mat(h, w, cv.CV_32F);
         absDiff3 = new cv.Mat(h, w, cv.CV_32FC3);
         mask = new cv.Mat(h, w, cv.CV_8U);
-        strobeMat = new cv.Mat(h, w, cv.CV_32FC3);
-        strobeDisplay = new cv.Mat(h, w, cv.CV_8UC3);
+        strobe = new cv.Mat(h, w, cv.CV_32FC3);
+        strobe8U = new cv.Mat(h, w, cv.CV_8UC3);
+        strobe8UC4 = new cv.Mat(h, w, cv.CV_8UC4);
     }
 
     function calcBackground() {
@@ -63,14 +65,13 @@ export function createStroboEvaluation(frames) {
         scalarMat.delete();
     }
 
-    function update(canvas, interval) {
-        console.log('updateStrobe...');
-        if (framesRGB.length === 0) return;
+    function makeStrobeImage(interval, offset=0) {
+        if (framesRGB.length === 0) return [];
 
         maxDiff.setTo(new cv.Scalar(0, 0, 0));
         maxAbsDiff.setTo(new cv.Scalar(0));
 
-        for (let i = 0; i < framesRGB.length; i += interval) {
+        for (let i = offset; i < framesRGB.length; i += interval) {
             const frame = framesRGB[i];
             frame.convertTo(frame32F, cv.CV_32F);
             cv.subtract(frame32F, background, diff);
@@ -81,13 +82,24 @@ export function createStroboEvaluation(frames) {
             absDiff.copyTo(maxAbsDiff, mask);
         }
 
-        background.copyTo(strobeMat);
-        cv.add(strobeMat, maxDiff, strobeMat);
+        background.copyTo(strobe);
+        cv.add(strobe, maxDiff, strobe);
 
-        strobeMat.convertTo(strobeDisplay, cv.CV_8U);
-        cv.imshow(canvas, strobeDisplay);
+        strobe.convertTo(strobe8U, cv.CV_8U);
+        cv.cvtColor(strobe8U, strobe8UC4, cv.COLOR_RGB2RGBA);
 
-        console.log('updateStrobe finished.');
+        const array = new Uint8ClampedArray(strobe8UC4.data);
+        const imageData = new ImageData(array, strobe8UC4.cols, strobe8UC4.rows);
+        return imageData;
+    }
+
+    function makeStrobeSeries(interval) {
+        const series = [];
+        for (let offset = 0; offset < interval; offset++) {
+            const imageData = makeStrobeImage(interval, offset);
+            series.push(imageData);
+        }
+        return series;
     }
 
     function destroy() {
@@ -108,7 +120,8 @@ export function createStroboEvaluation(frames) {
     prepareEvaluation(frames);
 
     return {
-        update,
+        makeStrobeImage,
+        makeStrobeSeries,
         destroy
     };
 }
