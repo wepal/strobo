@@ -256,8 +256,6 @@
             shutter.classList.remove('active');
             wait.style.display = 'block';
             cameraContainer.style.display = 'none';
-            shutter.style.display = 'none';
-            console.log('recording finished')
             // evaluation is slow, update screen first
             setTimeout(() => {
                 stroboEvaluation = createStroboEvaluation(frames);
@@ -265,7 +263,6 @@
                 intervalSlider.max = Math.floor(frames.length / 4);
                 wait.style.display = 'none';
                 strobeContainer.style.display = 'flex';
-                console.log('evaluation finished');
             }, 50);
         }
 
