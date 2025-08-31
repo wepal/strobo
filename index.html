@@ -162,7 +162,8 @@
         });
 
         intervalSlider.addEventListener('input', () => {
-            updateStrobeImage();
+            const withSeries = playing;
+            updateStrobeImage(withSeries);
         });
 
         shutter.addEventListener('click', () => {
@@ -186,6 +187,9 @@
         });
 
         function startAnimation(){
+            if (strobeSeries.length==1 && intervalSlider.value>1){
+                updateStrobeImage(true);
+            }
             const canvas = document.getElementById('canvasStrobe');
             const context = canvas.getContext('2d');
             canvas.width = strobeSeries[0].width;
@@ -257,7 +261,7 @@
             // evaluation is slow, update screen first
             setTimeout(() => {
                 stroboEvaluation = createStroboEvaluation(frames);
-                updateStrobeImage();
+                updateStrobeImage(true);
                 intervalSlider.max = Math.floor(frames.length / 4);
                 wait.style.display = 'none';
                 strobeContainer.style.display = 'flex';
@@ -265,12 +269,16 @@
             }, 50);
         }
 
-        function updateStrobeImage(){
+        function updateStrobeImage(withSeries=true){
             const canvas = document.getElementById('canvasStrobe');
             const context = canvas.getContext('2d');
             if (stroboEvaluation) {
-                strobeSeries = stroboEvaluation.computeStrobeSeries(parseInt(intervalSlider.value));
-                //const imageData = stroboEvaluation.computeStrobeImage(parseInt(intervalSlider.value));
+                const interval = parseInt(intervalSlider.value);
+                if (withSeries) {
+                    strobeSeries = stroboEvaluation.computeStrobeSeries(interval);
+                } else {
+                    strobeSeries = [stroboEvaluation.computeStrobeImage(interval)];
+                }
                 const imageData = strobeSeries[0];
                 canvas.width = imageData.width;
                 canvas.height = imageData.height;   
