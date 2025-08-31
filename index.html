@@ -134,6 +134,7 @@
                 video.srcObject = currentStream;
                 fps = currentStream.getVideoTracks()[0].getSettings().frameRate;
                 cameraReady = true;
+                cameraContainer.style.display = 'block';
             } catch (err) {
                 alert("Kamera konnte nicht geöffnet werden: " + err);
                 cameraReady = false;
