@@ -65,7 +65,7 @@ export function createStroboEvaluation(frames) {
         scalarMat.delete();
     }
 
-    function makeStrobeImage(interval, offset=0) {
+    function computeStrobeImage(interval, offset=0) {
         if (framesRGB.length === 0) return [];
 
         maxDiff.setTo(new cv.Scalar(0, 0, 0));
@@ -93,10 +93,10 @@ export function createStroboEvaluation(frames) {
         return imageData;
     }
 
-    function makeStrobeSeries(interval) {
+    function computeStrobeSeries(interval) {
         const series = [];
         for (let offset = 0; offset < interval; offset++) {
-            const imageData = makeStrobeImage(interval, offset);
+            const imageData = computeStrobeImage(interval, offset);
             series.push(imageData);
         }
         return series;
@@ -120,8 +120,8 @@ export function createStroboEvaluation(frames) {
     prepareEvaluation(frames);
 
     return {
-        makeStrobeImage,
-        makeStrobeSeries,
+        computeStrobeImage,
+        computeStrobeSeries,
         destroy
     };
 }

@@ -55,6 +55,7 @@
         let fps = 0;
         let frames = [];
         let stroboEvaluation;
+        let strobeSeries;
         let playing = false
 
         opencvReady = (typeof cv !== 'undefined' && typeof cv.Mat === 'function');
@@ -158,12 +159,50 @@
                 if(!playing){
                     playButton.classList.add('active');
                     playing = true;
+                    startAnimation();
+
                 } else {
                     playButton.classList.remove('active');
                     playing = false;
                 }
             }
         });
+
+        function startAnimation(){
+            const canvas = document.getElementById('canvasStrobe');
+            const context = canvas.getContext('2d');
+            canvas.width = strobeSeries[0].width;
+            canvas.height = strobeSeries[0].height;
+            let index = 0;
+            const fps = 10;
+            let nextTime = performance.now() + (1000 / fps);
+
+            function showNext(){
+                if (index >= strobeSeries.length) {
+                    index = 0; //strobeSeries changed
+                }
+                const imageData = strobeSeries[index];
+                context.putImageData(imageData, 0, 0);
+                index = (index + 1) % strobeSeries.length;
+            }
+
+            function showAnimationFrame(time) {
+                if (!playing) {
+                    return
+                }
+                if (time > nextTime) {
+                    showNext();
+                    nextTime = time + (1000 / fps);
+                }
+                if(playing){
+                    requestAnimationFrame(showAnimationFrame);
+                }
+            }
+
+            showNext();
+            requestAnimationFrame(showAnimationFrame);
+        }
+
 
         function startRecording() {
             recording = true;
@@ -206,7 +245,9 @@
             const canvas = document.getElementById('canvasStrobe');
             const context = canvas.getContext('2d');
             if (stroboEvaluation) {
-                const imageData = stroboEvaluation.makeStrobeImage(parseInt(intervalSlider.value));
+                strobeSeries = stroboEvaluation.computeStrobeSeries(parseInt(intervalSlider.value));
+                //const imageData = stroboEvaluation.computeStrobeImage(parseInt(intervalSlider.value));
+                const imageData = strobeSeries[0];
                 canvas.width = imageData.width;
                 canvas.height = imageData.height;   
                 context.putImageData(imageData, 0, 0);
