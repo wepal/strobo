@@ -67,19 +67,16 @@ export function createStroboEvaluation(frames) {
         const rows = frames[0].rows;
         const cols = frames[0].cols;
         const channels = frames[0].channels();
-        const nFrames = frames.length;
-        const medianIndex = Math.floor(nFrames / 2);
-        const pixelValues = [0,0,0,0,0];
+        const medianIndex = Math.floor(frames.length / 2);
         
         for (let r = 0; r < rows; r++) {
             for (let c = 0; c < cols; c++) {
+                const bgPixel = background.floatPtr(r, c)
+                const framePixels = frames.map(f => f.ucharPtr(r, c));
                 for (let ch = 0; ch < channels; ch++) {
-                    for (let f = 0; f < nFrames; f++) {
-                        pixelValues[f] = frames[f].ucharPtr(r, c)[ch];
-                    }
-
-                    const sorted = pixelValues.sort((a, b) => a - b);
-                    background.floatPtr(r, c)[ch] = sorted[medianIndex];
+                    const values = framePixels.map(p => p[ch]);
+                    const sorted = values.sort((a, b) => a - b);
+                    bgPixel[ch] = sorted[medianIndex];
                 }
             }
         }
