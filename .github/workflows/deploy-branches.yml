@@ -1,0 +1,46 @@
+name: Deploy static site from branches
+
+on:
+  push:
+    branches:
+      - '**'   # all branches
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Prepare output
+        run: |
+          mkdir -p output
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            # main branch → site root
+            rsync -av --exclude '.git*' --exclude '.github' --exclude '*.yml' ./ output/
+          else
+            # other branches → subfolder
+            mkdir -p output/${GITHUB_REF_NAME}
+            rsync -av --exclude '.git*' --exclude '.github' --exclude '*.yml' ./ output/${GITHUB_REF_NAME}/
+          fi
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./output
+          keep_files: true
