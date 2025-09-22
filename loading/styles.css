@@ -1,0 +1,238 @@
+html,
+body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: black;
+    position: relative;
+    font-family:'Segoe UI', sans-serif;
+}
+
+#source-menu {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    text-align: center;
+    font-size: 1.5rem;
+    display: flex;
+    flex-direction: row;
+    gap: 2rem;
+}
+
+#source-menu > div {
+    padding: 1rem 2rem;
+    border: white .1rem solid;
+    border-radius: .5rem;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.1);
+    transition: background 0.3s, transform 0.2s;
+}
+
+#wait {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    text-align: center;
+    font-size: 1.5rem;
+}
+
+#wait-image {
+    background-image: url('juggle.svg');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    width: 7rem;
+    height: 7rem;
+    margin: 1rem;
+}
+
+#camera-container,
+#strobe-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    background-color: black;
+    display: none;
+}
+
+video,
+canvas {
+    max-width: 100%;
+    max-height: 100%;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+#stroboControls {
+    position: absolute;
+    width: 90%;
+    bottom: 2vw;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: 2vw;
+    z-index: 2;
+    pointer-events: auto;
+}
+
+#debugInfo {
+    position: absolute;
+    top: 2vw;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 4vw;
+    z-index: 2;
+    pointer-events: auto;
+    color: greenyellow;
+    font-size: .5rem;
+}
+
+#shutter {
+    position: absolute;
+    bottom: 2rem;
+    z-index: 2;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4rem;
+    height: 4rem;
+    background: white;
+    border-radius: 50%;
+    cursor: pointer;
+    border: gray .2rem solid;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#shutter::after {
+    content: "";
+    display: block;
+    width: 2rem;
+    height: 2rem;
+    background: red;
+    border-radius: 50%;
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    z-index: 3;
+}
+
+#shutter.active::after {
+    border-radius: 0;
+    transition: border-radius 0.2s;
+}
+
+#shutter.disabled {
+    background: gray;
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+/*#shutter.active {
+    background: darkred;
+}*/
+
+#toggle-camera,
+#fullscreen,
+#reset {
+    z-index: 2;
+    width: 2.5rem;
+    height: 2.5rem;
+    position: absolute;
+    cursor: pointer;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+#toggle-camera:active,
+#fullscreen:active,
+#reset:active {
+    opacity: 0.25;
+}
+
+#toggle-camera {
+    bottom: 1rem;
+    right: 1rem;
+    background-image: url('switch.svg');
+}
+
+#fullscreen {
+    top: 1rem;
+    right: 1rem;
+    background-image: url('fullscreen.svg');
+}
+
+#fullscreen.active {
+    background-image: url('exit-fullscreen.svg');
+}
+
+#reset {
+    top: 1rem;
+    left: 1rem;
+    background-image: url('reset.svg');
+}
+
+#interval-slider {
+    flex: 1;
+    accent-color: #ff3333;
+}
+
+#play-button {
+    width: 2.5rem;
+    height: 2.5rem;
+    background: black;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#play-button::after {
+    content: "";
+    display: block;
+    width: 0;
+    height: 0;
+    border-top: 0.7rem solid transparent;
+    border-bottom: 0.7rem solid transparent;
+    border-left: 1.1rem solid white;
+    border-right: 0.7rem solid transparent;
+    background: transparent;
+    border-radius: 0;
+    position: relative;
+    top: 0rem;
+    left: 0.5rem;
+    z-index: 3;
+    transition: border left 0.3s;
+}
+
+#play-button.active::after {
+    border-top: .55rem solid white;
+    border-bottom: .55rem solid white;
+    border-left: .55rem solid white;
+    border-right: .55rem solid white;
+    left: 0;
+}
+
+#play-button:active {
+    opacity: 0.25;
+}
+
