@@ -5,6 +5,29 @@ body {
     height: 100%;
     background: black;
     position: relative;
+    font-family:'Segoe UI', sans-serif;
+}
+
+#source-menu {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    text-align: center;
+    font-size: 1.5rem;
+    display: flex;
+    flex-direction: row;
+    gap: 2rem;
+}
+
+#source-menu > div {
+    padding: 1rem 2rem;
+    border: white .1rem solid;
+    border-radius: .5rem;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.1);
+    transition: background 0.3s, transform 0.2s;
 }
 
 #wait {
@@ -14,7 +37,6 @@ body {
     transform: translate(-50%, -50%);
     color: white;
     text-align: center;
-    font-family:'Segoe UI', sans-serif;
     font-size: 1.5rem;
 }
 

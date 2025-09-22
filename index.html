@@ -22,6 +22,15 @@
         <div>Please wait...</div>
     </div>
 
+    <div id="source-menu">
+        <div id="use-camera">
+            Start Recording
+        </div>
+        <div id="use-file">
+            From File
+        </div>
+    </div>
+
     <!-- Live-Video -->
     <div id="camera-container">
         <video id="video" autoplay playsinline></video>
@@ -43,6 +52,8 @@
 
         import { createStroboEvaluation } from './strobo.js';
 
+        const useCamera = document.getElementById('use-camera');
+        const useFile = document.getElementById('use-file');
         const wait = document.getElementById('wait');
         const video = document.getElementById('video');
         const shutter = document.getElementById('shutter');
@@ -75,6 +86,38 @@
             opencvReady = true;
             updateReady();
         }
+
+        useCamera.addEventListener('click', () => {
+            useCamera.style.display = 'none';
+            useFile.style.display = 'none';
+            startCamera();
+        });
+
+        useFile.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'video/*';
+            input.onchange = e => {
+                const file = e.target.files[0];
+                if (file) {
+                    useCamera.style.display = 'none';
+                    useFile.style.display = 'none';
+                    video.src = URL.createObjectURL(file);
+                    video.onloadeddata = () => {
+                        cameraReady = true;
+                        updateReady();
+                        cameraContainer.style.display = 'block';
+                        startRecording();
+                    };
+                    video.onended = () => {
+                        if (recording) {
+                            stopRecording();
+                        }
+                    };
+                }
+            };
+            input.click();
+        });
     
         function updateReady(){
             const ready = cameraReady && opencvReady;
@@ -292,8 +335,6 @@
                 stopRecording();
             }
         }
-            
-        startCamera();
 
     </script>
             
