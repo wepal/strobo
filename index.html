@@ -107,6 +107,8 @@
                         cameraReady = true;
                         updateReady();
                         cameraContainer.style.display = 'block';
+                        shutter.style.display = 'none';
+                        toggleBtn.style.display = 'none';
                         startRecording();
                     };
                     video.onended = () => {
