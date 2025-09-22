@@ -82,6 +82,7 @@ canvas {
     display: flex;
     flex-direction: row;
     justify-content: center;
+    align-items: center;
     gap: 2vw;
     z-index: 2;
     pointer-events: auto;
@@ -188,6 +189,18 @@ canvas {
     top: 1rem;
     left: 1rem;
     background-image: url('reset.svg');
+}
+
+#interval {
+    display: flex;
+    height: 1.5rem;
+    color: white;
+    background-color: black;
+    font-size: .8rem;
+    padding-bottom: 0.15rem;
+    width: 3.5rem;
+    justify-content: center;
+    align-items: center;
 }
 
 #interval-slider {
