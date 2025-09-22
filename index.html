@@ -43,6 +43,7 @@
     <div id="strobe-container" style="display:none;">
         <canvas id="canvasStrobe"></canvas>
         <div id="stroboControls">
+            <div id="interval"></div>
             <input type="range" id="interval-slider" min="1" max="10" value="3" />
             <div id="play-button"></div>
         </div>
@@ -65,6 +66,7 @@
         const playButton = document.getElementById('play-button');
         const cameraContainer = document.getElementById('camera-container');
 
+        const maxFrames = 500;
         const params = new URLSearchParams(window.location.search);
         const showDebugInfo = params.get('debug') === '1'
         const idealFrameSize = (params.get('resolution')==720 ? { width: 1280, height: 720 } : { width: 640, height: 480 });
@@ -109,6 +111,22 @@
                         cameraContainer.style.display = 'block';
                         shutter.style.display = 'none';
                         toggleBtn.style.display = 'none';
+                        // Try to get FPS from video file metadata
+                        if (video.captureStream) {
+                            try {
+                                const stream = video.captureStream();
+                                const track = stream.getVideoTracks()[0];
+                                const settings = track.getSettings();
+                                if (settings.frameRate) {
+                                    fps = settings.frameRate;
+                                }
+                            } catch (e) {
+                                // fallback if captureStream not supported
+                                fps = 30;
+                            }
+                        } else {
+                            fps = 30; // fallback default
+                        }
                         startRecording();
                     };
                     video.onended = () => {
@@ -206,8 +224,15 @@
             window.location.reload();
         });
 
+        function updateIntervalDiv(){
+            const intervalFrames = parseInt(intervalSlider.value);
+            const intervalSeconds = intervalFrames / fps;
+            document.getElementById('interval').innerText = `${intervalSeconds.toFixed(3)} s`;
+        }
+
         intervalSlider.addEventListener('input', () => {
             const withSeries = playing;
+            updateIntervalDiv();
             updateStrobeImage(withSeries);
         });
 
@@ -286,7 +311,7 @@
                 let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 frames.push(imageData);
                 updateDebugInfo();
-                if (frames.length < 500) {
+                if (frames.length < maxFrames) {
                     video.requestVideoFrameCallback(captureFrame);
                 } else {
                     stopRecording();
@@ -308,6 +333,7 @@
                 intervalSlider.max = Math.floor(frames.length / 4);
                 wait.style.display = 'none';
                 strobeContainer.style.display = 'flex';
+                updateIntervalDiv();
             }, 50);
         }
 
