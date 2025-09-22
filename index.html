@@ -304,11 +304,19 @@
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
+            const size = Math.max(canvas.width, canvas.height);
+            const idealSize = Math.max(idealFrameSize.width, idealFrameSize.height);
+            // downscale if video is larg
+            if(size > idealSize*1.2){
+                const scale = idealSize / size;
+                canvas.width = Math.floor(canvas.width * scale);
+                canvas.height = Math.floor(canvas.height * scale);
+            }
 
             const captureFrame = (now, metadata) => {
                 if (!recording) return;
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);                
                 frames.push(imageData);
                 updateDebugInfo();
                 if (frames.length < maxFrames) {
