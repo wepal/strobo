@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Strobo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://docs.opencv.org/4.x/opencv.js"></script>
+    <style>
+        @import url('styles.css');
+    </style>
+    <link rel="preload" as="image" href="juggle.svg">
+</head>
+
+<body>
+
+    <div id="reset"></div>
+    <div id="fullscreen"></div>
+
+    <div id="wait">
+        <div id="wait-image"></div>
+        <div>Please wait...</div>
+    </div>
+
+    <!-- Live-Video -->
+    <div id="camera-container">
+        <video id="video" autoplay playsinline></video>
+        <div id="shutter" class="disabled"></div>
+        <div id="toggle-camera"></div>
+        <div id="debugInfo"></div>
+    </div>
+
+    <!-- Stroboskopbild -->
+    <div id="strobe-container" style="display:none;">
+        <canvas id="canvasStrobe"></canvas>
+        <div id="stroboControls">
+            <input type="range" id="interval-slider" min="1" max="10" value="3" />
+            <div id="play-button"></div>
+        </div>
+    </div>
+
+    <script type="module">
+
+        import { createStroboEvaluation } from './strobo.js';
+
+        const wait = document.getElementById('wait');
+        const video = document.getElementById('video');
+        const shutter = document.getElementById('shutter');
+        const toggleBtn = document.getElementById('toggle-camera');
+        const resetBtn = document.getElementById('reset');
+        const fullscreenBtn = document.getElementById('fullscreen');
+        const strobeContainer = document.getElementById('strobe-container');
+        const intervalSlider = document.getElementById('interval-slider');
+        const playButton = document.getElementById('play-button');
+        const cameraContainer = document.getElementById('camera-container');
+
+        const params = new URLSearchParams(window.location.search);
+        const showDebugInfo = params.get('debug') === '1'
+        const idealFrameSize = (params.get('resolution')==720 ? { width: 1280, height: 720 } : { width: 640, height: 480 });
+
+        let usingFrontCam = false;
+        let currentStream;
+        let opencvReady = false;
+        let cameraReady = false;
+        let recording = false;
+        let fps = 0;
+        let frames = [];
+        let stroboEvaluation;
+        let strobeSeries;
+        let playing = false;
+        let animationIndex = 0;
+
+        opencvReady = (typeof cv !== 'undefined' && typeof cv.Mat === 'function');
+        cv['onRuntimeInitialized'] = () => {
+            opencvReady = true;
+            updateReady();
+        }
+    
+        function updateReady(){
+            const ready = cameraReady && opencvReady;
+            if(ready){
+                shutter.classList.remove('disabled');
+            }
+            updateDebugInfo();
+        }
+        
+        function updateDebugInfo(){
+            const debugInfo = document.getElementById('debugInfo');
+
+            debugInfo.style.display = showDebugInfo ? 'flex' : 'none';
+
+            debugInfo.innerHTML = `
+                <p>Using Front Camera: ${usingFrontCam}</p>
+                <p>Recording: ${recording}</p>
+                <p>Frames Captured: ${frames.length}</p>
+                <p>Window w/h: ${window.innerWidth}/${window.innerHeight}px</p>
+                <p>Video w/h: ${video.videoWidth}/${video.videoHeight}px</p>
+                <p>FPS: ${fps}</p>
+                <p>OpenCV Ready: ${opencvReady}</p>
+                <p>Camera Ready: ${cameraReady}</p>
+            `;
+        }
+
+        function toggleFullscreen(elem = document.documentElement) {
+            const fsElem = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+            if (!fsElem) {
+                (elem.requestFullscreen || elem.webkitRequestFullscreen || elem.msRequestFullscreen).call(elem)?.catch(e => {
+                    console.error(e);
+                    return false;
+                });
+                return true;
+            } else {
+                (document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen).call(document);
+                return false;
+            }
+        }
+
+        async function startCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+
+            const facingMode = usingFrontCam ? 'user' : 'environment';
+
+            try {
+                currentStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: idealFrameSize.width },
+                        height: { ideal: idealFrameSize.height },
+                        frameRate: { ideal: 60 },
+                        facingMode: { ideal: facingMode}
+                    }
+                });
+                video.srcObject = currentStream;
+                fps = currentStream.getVideoTracks()[0].getSettings().frameRate;
+                cameraReady = true;
+                cameraContainer.style.display = 'block';
+            } catch (err) {
+                alert("Kamera konnte nicht geöffnet werden: " + err);
+                cameraReady = false;
+            }
+
+            updateReady();
+            updateDebugInfo();
+        }
+
+        toggleBtn.addEventListener('click', () => {
+            usingFrontCam = !usingFrontCam;
+            startCamera();
+        });
+
+        fullscreenBtn.addEventListener('click', () => {
+            if (toggleFullscreen()) {
+                fullscreenBtn.classList.add('active');
+            } else {
+                fullscreenBtn.classList.remove('active');
+            }
+        });
+
+        resetBtn.addEventListener('click', () => {
+            window.location.reload();
+        });
+
+        intervalSlider.addEventListener('input', () => {
+            const withSeries = playing;
+            updateStrobeImage(withSeries);
+        });
+
+        shutter.addEventListener('click', () => {
+            if (!shutter.classList.contains('disabled')) {
+                onShutter();
+            }
+        });
+
+        playButton.addEventListener('click', () => {
+            if (!playButton.classList.contains('disabled')) {
+                if(!playing){
+                    playButton.classList.add('active');
+                    playing = true;
+                    startAnimation();
+
+                } else {
+                    playButton.classList.remove('active');
+                    playing = false;
+                }
+            }
+        });
+
+        function startAnimation(){
+            if (strobeSeries.length==1 && intervalSlider.value>1){
+                updateStrobeImage(true);
+            }
+            const canvas = document.getElementById('canvasStrobe');
+            const context = canvas.getContext('2d');
+            canvas.width = strobeSeries[0].width;
+            canvas.height = strobeSeries[0].height;
+            const fps = 10;
+            let nextTime = performance.now() + (1000 / fps);
+
+            function showNext(){
+                if (animationIndex >= strobeSeries.length) {
+                    //strobeSeries changed
+                    animationIndex = animationIndex % strobeSeries.length;
+                }
+                const imageData = strobeSeries[animationIndex];
+                context.putImageData(imageData, 0, 0);
+                animationIndex = (animationIndex + 1) % strobeSeries.length;
+            }
+
+            function showAnimationFrame(time) {
+                if (!playing) {
+                    return
+                }
+                if (time > nextTime) {
+                    showNext();
+                    nextTime = time + (1000 / fps);
+                }
+                if(playing){
+                    requestAnimationFrame(showAnimationFrame);
+                }
+            }
+
+            showNext();
+            requestAnimationFrame(showAnimationFrame);
+        }
+
+
+        function startRecording() {
+            recording = true;
+            shutter.classList.add('active');
+            frames = [];
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            const captureFrame = (now, metadata) => {
+                if (!recording) return;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                frames.push(imageData);
+                updateDebugInfo();
+                if (frames.length < 500) {
+                    video.requestVideoFrameCallback(captureFrame);
+                } else {
+                    stopRecording();
+                }
+            };
+
+            video.requestVideoFrameCallback(captureFrame);
+        }
+
+        function stopRecording() {
+            recording = false;
+            shutter.classList.remove('active');
+            wait.style.display = 'block';
+            cameraContainer.style.display = 'none';
+            // evaluation is slow, update screen first
+            setTimeout(() => {
+                stroboEvaluation = createStroboEvaluation(frames);
+                updateStrobeImage(true);
+                intervalSlider.max = Math.floor(frames.length / 4);
+                wait.style.display = 'none';
+                strobeContainer.style.display = 'flex';
+            }, 50);
+        }
+
+        function updateStrobeImage(withSeries=true){
+            const canvas = document.getElementById('canvasStrobe');
+            const context = canvas.getContext('2d');
+            if (stroboEvaluation) {
+                const interval = parseInt(intervalSlider.value);
+                if (withSeries) {
+                    strobeSeries = stroboEvaluation.computeStrobeSeries(interval);
+                } else {
+                    strobeSeries = [stroboEvaluation.computeStrobeImage(interval)];
+                }
+                const imageData = strobeSeries[0];
+                canvas.width = imageData.width;
+                canvas.height = imageData.height;   
+                context.putImageData(imageData, 0, 0);
+            } else {
+                context.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+        
+        function onShutter() {
+            if (!recording) {
+                startRecording();
+            } else {
+                stopRecording();
+            }
+        }
+            
+        startCamera();
+
+    </script>
+            
+</body>
+
+</html>
