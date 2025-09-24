@@ -69,6 +69,7 @@
         const maxFrames = 500;
         const params = new URLSearchParams(window.location.search);
         const showDebugInfo = params.get('debug') === '1'
+        const use = params.get('use')
         const idealFrameSize = (params.get('resolution')==720 ? { width: 1280, height: 720 } : { width: 640, height: 480 });
 
         let usingFrontCam = false;
@@ -89,13 +90,15 @@
             updateReady();
         }
 
-        useCamera.addEventListener('click', () => {
+        function onUseCamera() {
             useCamera.style.display = 'none';
             useFile.style.display = 'none';
             startCamera();
-        });
+        }
 
-        useFile.addEventListener('click', () => {
+        useCamera.addEventListener('click', onUseCamera);
+
+        function onUseFile() {
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = 'video/*';
@@ -137,7 +140,15 @@
                 }
             };
             input.click();
-        });
+        }
+
+        useFile.addEventListener('click', onUseFile);
+
+        if (use === 'camera') {
+            onUseCamera();
+        } else if (use === 'file') {
+            onUseFile();
+        }
     
         function updateReady(){
             const ready = cameraReady && opencvReady;
