@@ -5,6 +5,29 @@ body {
     height: 100%;
     background: black;
     position: relative;
+    font-family:'Segoe UI', sans-serif;
+}
+
+#source-menu {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    text-align: center;
+    font-size: 1.5rem;
+    display: flex;
+    flex-direction: row;
+    gap: 2rem;
+}
+
+#source-menu > div {
+    padding: 1rem 2rem;
+    border: white .1rem solid;
+    border-radius: .5rem;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.1);
+    transition: background 0.3s, transform 0.2s;
 }
 
 #wait {
@@ -14,7 +37,6 @@ body {
     transform: translate(-50%, -50%);
     color: white;
     text-align: center;
-    font-family:'Segoe UI', sans-serif;
     font-size: 1.5rem;
 }
 
@@ -60,6 +82,7 @@ canvas {
     display: flex;
     flex-direction: row;
     justify-content: center;
+    align-items: center;
     gap: 2vw;
     z-index: 2;
     pointer-events: auto;
@@ -168,6 +191,18 @@ canvas {
     background-image: url('reset.svg');
 }
 
+#interval {
+    display: flex;
+    height: 1.5rem;
+    color: white;
+    background-color: black;
+    font-size: .8rem;
+    padding-bottom: 0.15rem;
+    width: 3.5rem;
+    justify-content: center;
+    align-items: center;
+}
+
 #interval-slider {
     flex: 1;
     accent-color: #ff3333;
@@ -182,6 +217,21 @@ canvas {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+#download-button {
+    width: 2.5rem;
+    height: 2.5rem;
+    background: black;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-image: url('download.svg');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
 }
 
 #play-button::after {
