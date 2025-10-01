@@ -282,7 +282,7 @@
 
         function saveAsPng(){
             const link = document.createElement('a');
-            link.download = 'strobe.png';
+            link.download = 'strobo.png';
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
             const index = Math.min(animationIndex, strobeSeries.length - 1);
@@ -291,9 +291,22 @@
             canvas.height = imageData.height;   
             context.putImageData(imageData, 0, 0);
             canvas.toBlob((blob) => {
-                link.href = URL.createObjectURL(blob);
-                link.click();
-                URL.revokeObjectURL(link.href);
+                if (navigator.canShare && navigator.canShare({ files: [new File([blob], 'strobo.png', { type: 'image/png' })] })) {
+                    // Für moderne Mobile-Browser: Teilen/Download
+                    navigator.share({
+                        files: [new File([blob], 'strobo.png', { type: 'image/png' })],
+                        title: 'Strobo Image'
+                    });
+                } else {
+                    // Fallback: Link klicken
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = 'strobo.png'; 
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(link.href);
+                }
             }, 'image/png');
         }
 
