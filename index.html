@@ -271,7 +271,7 @@
 
         downloadButton.addEventListener('click', async () => {
             if (!strobeSeries || strobeSeries.length === 0) {
-            return;
+                return;
             }
             if (!playing) {
                 saveAsPng();
@@ -302,6 +302,7 @@
         }
 
         function saveAsVideo(){
+            downloadButton.classList.add('disabled');
             const width = strobeSeries[0].width;
             const height = strobeSeries[0].height;
             const canvas = document.createElement('canvas');
@@ -321,6 +322,7 @@
                 link.href = URL.createObjectURL(blob);
                 link.click();
                 URL.revokeObjectURL(link.href);
+                downloadButton.classList.remove('disabled');
             };
             mediaRecorder.start();
 

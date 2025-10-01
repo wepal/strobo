@@ -234,6 +234,15 @@ canvas {
     background-position: center;
 }
 
+#download-button:active {
+    opacity: 0.25;
+}
+
+#download-button.disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
 #play-button::after {
     content: "";
     display: block;
