@@ -219,6 +219,21 @@ canvas {
     justify-content: center;
 }
 
+#download-button {
+    width: 2.5rem;
+    height: 2.5rem;
+    background: black;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-image: url('download.svg');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
 #play-button::after {
     content: "";
     display: block;

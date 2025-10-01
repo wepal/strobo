@@ -46,6 +46,7 @@
             <div id="interval"></div>
             <input type="range" id="interval-slider" min="1" max="10" value="3" />
             <div id="play-button"></div>
+            <div id="download-button"></div>
         </div>
     </div>
 
@@ -64,6 +65,7 @@
         const strobeContainer = document.getElementById('strobe-container');
         const intervalSlider = document.getElementById('interval-slider');
         const playButton = document.getElementById('play-button');
+        const downloadButton = document.getElementById('download-button');
         const cameraContainer = document.getElementById('camera-container');
 
         const maxFrames = 500;
@@ -266,6 +268,73 @@
                 }
             }
         });
+
+        downloadButton.addEventListener('click', async () => {
+            if (!strobeSeries || strobeSeries.length === 0) {
+            return;
+            }
+            if (!playing) {
+                saveAsPng();
+            } else {
+                saveAsVideo();
+            }
+        });
+
+        function saveAsPng(){
+            const link = document.createElement('a');
+            link.download = 'strobe.png';
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            const index = Math.min(animationIndex, strobeSeries.length - 1);
+            const imageData = strobeSeries[index];
+            canvas.width = imageData.width;
+            canvas.height = imageData.height;   
+            context.putImageData(imageData, 0, 0);
+            canvas.toBlob((blob) => {
+                link.href = URL.createObjectURL(blob);
+                link.click();
+                URL.revokeObjectURL(link.href);
+            }, 'image/png');
+        }
+
+        function saveAsVideo(){
+            const width = strobeSeries[0].width;
+            const height = strobeSeries[0].height;
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const context = canvas.getContext('2d');
+            const stream = canvas.captureStream(10); // 10 fps
+            const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+            let chunks = [];
+            mediaRecorder.ondataavailable = e => {
+                if (e.data.size > 0) chunks.push(e.data);
+            };
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(chunks, { type: 'video/webm' });
+                const link = document.createElement('a');
+                link.download = 'strobo.webm';
+                link.href = URL.createObjectURL(blob);
+                link.click();
+                URL.revokeObjectURL(link.href);
+            };
+            mediaRecorder.start();
+
+            // Draw each frame at 10 fps
+            const targetLengthSeconds = 5;
+            const loops = Math.ceil(targetLengthSeconds * 10 / strobeSeries.length);
+            let i = 0;
+            function drawNextFrame() {
+                if (i < strobeSeries.length * loops) {
+                    context.putImageData(strobeSeries[i % strobeSeries.length], 0, 0);
+                    i++;
+                    setTimeout(drawNextFrame, 100);
+                } else {
+                    mediaRecorder.stop();
+                }
+            }
+            drawNextFrame();
+        }
 
         function startAnimation(){
             if (strobeSeries.length==1 && intervalSlider.value>1){
